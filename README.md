@@ -136,8 +136,142 @@ Sensitive Internal Information
 ```
 
 ---
+# 5. HexStrike Usage
 
-# 5. Findings Summary
+HexStrike was used as part of the authorized security assessment to assist with web application reconnaissance, endpoint discovery, authentication testing, and validation of identified vulnerabilities.
+
+The tool was operated only against the authorized Mediroza General Hospital target.
+
+## 5.1 Reconnaissance
+
+HexStrike was first used to identify publicly exposed application paths and resources.
+
+During reconnaissance, the following paths were identified:
+
+```text
+/robots.txt
+/patient/
+/staff/
+/old/
+```
+
+The `robots.txt` file referenced directories that were not intended to be publicly indexed. HexStrike then verified that directory listings were accessible under these paths.
+
+The `/patient/` directory exposed application files including:
+* `login.php`
+* `portal.php`
+* `download.php`
+* `reports/`
+* `error_log`
+
+This provided useful information about the application's structure and identified the patient login functionality for further authorized testing.
+
+## 5.2 Authentication Testing
+
+HexStrike analyzed the patient login form and identified the authentication parameters:
+* `username`
+* `password`
+
+The login functionality was then tested for injection vulnerabilities. A controlled SQL injection authentication-bypass payload was submitted through the `username` parameter.
+
+The application responded with:
+```http
+HTTP/1.1 302 Found
+Location: portal.php
+```
+
+This indicated that the authentication control had been bypassed. HexStrike then validated the result by accessing the authenticated patient portal.
+
+## 5.3 Authentication Bypass Validation
+
+The successful SQL injection test was not treated as proof based solely on the HTTP response header. The result was validated by following the application flow and confirming access to the patient portal.
+
+The portal displayed three available laboratory reports. This established the following sequence:
+
+```text
+SQL Injection Payload
+        │
+        ▼
+Authentication Bypass
+        │
+        ▼
+HTTP 302 Redirect
+        │
+        ▼
+portal.php
+        │
+        ▼
+Authenticated Patient Portal
+        │
+        ▼
+Three Laboratory Reports
+```
+
+> **Evidence Placeholder:**
+> *[Insert screenshot of HexStrike output showing SQL injection test, successful response, and redirect to portal.php]*
+
+## 5.4 Report Discovery and Retrieval
+
+After authentication bypass was validated, HexStrike was used to enumerate the available patient-report functionality.
+
+Three reports were identified:
+* Report ID 1
+* Report ID 2
+* Report ID 3
+
+The reports were retrieved for the purposes of the authorized assessment and were stored locally for subsequent analysis. The retrieved files were valid password-protected PDF documents.
+
+## 5.5 PDF Analysis
+
+HexStrike-assisted retrieval was followed by local PDF analysis. The three files were examined using PDF-analysis tools to determine their encryption status.
+
+The files were confirmed to be password protected. Password recovery was then performed against the retrieved files using `pdfcrack`. All three passwords were successfully recovered:
+
+| Document | Recovered Password |
+| :--- | :--- |
+| **Report 1** | `123456` |
+| **Report 2** | `password` |
+| **Report 3** | `!@#$%^&` |
+
+The recovered passwords were manually entered to verify that the PDF contents could be opened successfully.
+
+## 5.6 Metadata Analysis
+
+After decrypting the reports, their metadata was examined. The metadata of Report 3 contained a comment referencing an old database backup:
+
+> `DB backup moved to /old before site migration, do not delete`
+
+This provided a lead for further authorized investigation. The `/old/` directory was then examined.
+
+## 5.7 Database Backup Discovery
+
+The `/old/` directory was publicly accessible and displayed a directory listing. The listing exposed:
+`mediroza_db_backup_2019.sql`
+
+The backup was retrieved and analyzed locally. The database contained sensitive internal information including:
+* Staff names
+* Monthly salaries
+* Shareholder names
+* Share percentages
+* Shares held
+* Share classes
+
+This confirmed that the metadata clue led to a significant information disclosure.
+
+## 5.8 Role of HexStrike in the Assessment
+
+HexStrike was particularly useful because it successfully performed the application-level testing and validation when other command-line testing attempts were affected by intermittent connectivity to the target.
+
+Earlier manual/CLI attempts using tools such as `curl`, Burp Repeater/Intruder, and Hydra experienced connection timeouts or connection errors. Therefore, those failed attempts were not interpreted as evidence that the SQL injection vulnerability was absent.
+
+HexStrike successfully reached the application, demonstrated the SQL injection authentication bypass, and allowed the resulting access to be validated through the patient portal.
+
+The subsequent PDF, metadata, and database analysis was performed as part of the same authorized assessment workflow using appropriate analysis tools.
+
+---
+
+
+# 6. Findings Summary
 
 | ID | Finding | Severity |
 | :--- | :--- | :--- |
@@ -150,7 +284,7 @@ Sensitive Internal Information
 
 ---
 
-# 6. F-01 — SQL Injection Authentication Bypass
+# 7. F-01 — SQL Injection Authentication Bypass
 
 **Severity:** 🔴 Critical
 
@@ -186,7 +320,7 @@ Because the application contains patient information, exploitation can result in
 
 ---
 
-# 7. F-02 — Unauthorized Exposure of Patient Laboratory Reports
+# 8. F-02 — Unauthorized Exposure of Patient Laboratory Reports
 
 **Severity:** 🔴 Critical
 
@@ -219,7 +353,7 @@ Unauthorized access to these documents represents a serious patient confidential
 
 ---
 
-# 8. F-03 — Weak/Recoverable PDF Password Protection
+# 9. F-03 — Weak/Recoverable PDF Password Protection
 
 **Severity:** 🟠 High
 
@@ -239,8 +373,6 @@ The recovered passwords were:
 | **Report 2** | `password` |
 | **Report 3** | `!@#$%^&` |
 
-> *These credentials are included here strictly as proof of the authorized assessment and should not be reused against any system.*
-
 ### Impact
 The passwords were easily guessable/common values. 
 
@@ -254,7 +386,7 @@ Therefore, obtaining the encrypted PDF files was sufficient to make recovery of 
 
 ---
 
-# 9. F-04 — Publicly Accessible Database Backup
+# 10. F-04 — Publicly Accessible Database Backup
 
 **Severity:** 🔴 Critical
 
@@ -286,7 +418,7 @@ Exposure of this backup significantly increased the impact of the other vulnerab
 
 ---
 
-# 10. F-05 — Exposure of Employee Salary Information
+# 11. F-05 — Exposure of Employee Salary Information
 
 **Severity:** 🔴 Critical
 
@@ -314,7 +446,7 @@ Unauthorized disclosure of employee compensation information can create:
 
 ---
 
-# 11. F-06 — Exposure of Shareholder Information
+# 12. F-06 — Exposure of Shareholder Information
 
 **Severity:** 🟠 High
 
@@ -341,7 +473,7 @@ Unauthorized disclosure of corporate ownership information can expose sensitive 
 
 ---
 
-# 12. Evidence Register
+# 13. Evidence Register
 
 | Evidence ID | Description |
 | :--- | :--- |
@@ -356,7 +488,7 @@ Unauthorized disclosure of corporate ownership information can expose sensitive 
 
 ---
 
-# 13. Overall Risk
+# 14. Overall Risk
 
 The vulnerabilities should not be considered completely independent.
 
@@ -373,7 +505,7 @@ The combination of these weaknesses represents a **high-risk security condition*
 
 ---
 
-# 14. Remediation Priorities
+# 15. Remediation Priorities
 
 ### Immediate
 - Remove the exposed SQL database backup.
@@ -397,7 +529,7 @@ The combination of these weaknesses represents a **high-risk security condition*
 
 ---
 
-# 15. Conclusion
+# 16. Conclusion
 
 The assessment identified several critical weaknesses in the Mediroza General Hospital web application and supporting file-management practices.
 
@@ -417,7 +549,7 @@ The publicly accessible database backup represented a particularly serious confi
 
 ---
 
-# 16. Security Notes
+# 17. Security Notes
 
 This write-up intentionally avoids publishing:
 - Patient medical information
