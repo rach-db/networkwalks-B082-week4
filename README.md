@@ -207,9 +207,6 @@ Authenticated Patient Portal
 Three Laboratory Reports
 ```
 
-> **Evidence Placeholder:**
-> *[Insert screenshot of HexStrike output showing SQL injection test, successful response, and redirect to portal.php]*
-
 ## 5.4 Report Discovery and Retrieval
 
 After authentication bypass was validated, HexStrike was used to enumerate the available patient-report functionality.
@@ -269,7 +266,6 @@ HexStrike successfully reached the application, demonstrated the SQL injection a
 The subsequent PDF, metadata, and database analysis was performed as part of the same authorized assessment workflow using appropriate analysis tools.
 
 ---
-
 
 # 6. Findings Summary
 
